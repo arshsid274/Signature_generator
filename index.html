@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Slice Reveal — GSAP</title>
+    <style>
+      :root { --bg:#0b0d12; --panel:#12151d; --border:#242a38; --text:#e7eaf0; --muted:#9aa3b2; --accent:#6366f1; }
+      * { box-sizing: border-box; }
+      body { margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        display:grid; grid-template-columns:330px 1fr; }
+      .panel { border-right:1px solid var(--border); background:var(--panel); padding:22px 20px; overflow-y:auto; }
+      h1 { font-size:17px; margin:0 0 4px; }
+      .sub { color:var(--muted); font-size:12px; margin:0 0 16px; line-height:1.5; }
+      label { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:15px 0 6px; display:flex; justify-content:space-between; }
+      input[type="range"] { width:100%; accent-color:var(--accent); }
+      .drop { border:1.5px dashed var(--border); border-radius:12px; padding:16px; text-align:center; color:var(--muted); font-size:13px; cursor:pointer; transition:border-color .15s, background .15s; }
+      .drop:hover, .drop.over { border-color:var(--accent); background:#161a24; }
+      .row { display:flex; gap:8px; margin-top:12px; }
+      button { flex:1; background:#181c26; border:1px solid var(--border); color:var(--text); border-radius:9px; padding:9px; font-size:13px; cursor:pointer; }
+      button.primary { background:var(--accent); border-color:transparent; color:#fff; }
+      button:hover { border-color:var(--accent); }
+      hr { border:none; border-top:1px solid var(--border); margin:16px 0; }
+      .stage { display:flex; align-items:center; justify-content:center; padding:40px; background:#fff; }
+      .fwrap { position:relative; }
+      .frame { position:relative; transform-origin:top left; }
+      .slide { position:absolute; overflow:hidden; will-change:clip-path, opacity;
+        -webkit-mask-size:100% 100%; mask-size:100% 100%;
+        -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; }
+      .slide img { position:absolute; display:block; }
+      .hint { color:#9aa3b2; font:14px Arial; }
+    </style>
+  </head>
+  <body>
+    <aside class="panel">
+      <h1>Slice Reveal — GSAP</h1>
+      <p class="sub">Each strip is a masked panel; a <b>clip-path</b> grows it into
+        place (1–4 from the bottom, 5–6 from the top), staggered by progress with
+        progressive durations and <b>power3.out</b>. Plays once.</p>
+
+      <div class="drop" id="drop">
+        <strong>Click or drop your photo</strong><br />
+        <span style="font-size:11px">stays on your machine</span>
+        <input id="file" type="file" accept="image/*" hidden />
+      </div>
+
+      <label>Speed <span id="vSpeed">0.6s base</span></label>
+      <input id="speed" type="range" min="250" max="1200" step="25" value="600" />
+      <div class="row"><button class="primary" id="replay">▶ Replay</button></div>
+
+      <hr />
+      <label>Zoom <span id="vZoom">100%</span></label>
+      <input id="zoom" type="range" min="50" max="280" step="1" value="100" />
+      <label>Move X <span id="vX">0</span></label>
+      <input id="x" type="range" min="-400" max="400" step="2" value="0" />
+      <label>Move Y <span id="vY">0</span></label>
+      <input id="y" type="range" min="-400" max="400" step="2" value="0" />
+      <label>Display size <span id="vSize">520px</span></label>
+      <input id="size" type="range" min="320" max="820" step="10" value="520" />
+      <div class="row"><button id="reset">Reset framing</button></div>
+      <p class="sub" id="status" style="margin-top:14px"></p>
+    </aside>
+
+    <main class="stage">
+      <div class="fwrap" id="fwrap"><div class="frame" id="frame"><span class="hint">Upload a photo →</span></div></div>
+    </main>
+
+    <script src="mask-data.js"></script>
+    <script src="gsap.min.js"></script>
+    <script>
+      const M = window.MASK, VB = M.viewBox, SB = M.silBBox;
+      const els = {}; ["fwrap","frame","drop","file","speed","replay","zoom","x","y","size","reset","status","vSpeed","vZoom","vX","vY","vSize"].forEach(id=>els[id]=document.getElementById(id));
+      const mapping = [5,4,1,2,3,6]; // left→right strip → slide number (confirmed)
+      let userPhoto = null, slideData = {}, tl = null, built = false;
+
+      function loadImg(src){ return new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=src; }); }
+
+      // ── segment MASK_SIL into the 6 strips; per-strip bbox + cropped mask dataURL ──
+      loadImg(window.MASK_SIL).then(sil=>{ segment(sil); maybeBuild(); });
+      function segment(sil){
+        const w=VB.w,h=VB.h; const c=document.createElement("canvas"); c.width=w;c.height=h;
+        const cx=c.getContext("2d"); cx.drawImage(sil,0,0,w,h);
+        const d=cx.getImageData(0,0,w,h).data; const m=new Uint8Array(w*h);
+        for(let i=0;i<w*h;i++) m[i]=d[i*4+3]>128?1:0;
+        const lbl=new Int32Array(w*h).fill(-1); let nc=0; const comps=[]; const stk=[];
+        for(let i=0;i<w*h;i++){ if(m[i]&&lbl[i]<0){ const id=nc++; let area=0,sx=0,minx=1e9,miny=1e9,maxx=-1,maxy=-1; stk.length=0; stk.push(i); lbl[i]=id;
+          while(stk.length){ const p=stk.pop(); const x=p%w,y=(p/w)|0; area++; sx+=x; if(x<minx)minx=x;if(x>maxx)maxx=x;if(y<miny)miny=y;if(y>maxy)maxy=y;
+            for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){ if(!dx&&!dy)continue; const X=x+dx,Y=y+dy; if(X<0||Y<0||X>=w||Y>=h)continue; const q=Y*w+X; if(m[q]&&lbl[q]<0){lbl[q]=id;stk.push(q);} } }
+          comps.push({id,area,cx:sx/area,bx:minx,by:miny,bw:maxx-minx+1,bh:maxy-miny+1}); } }
+        const big=comps.filter(c=>c.area>1500).sort((a,b)=>a.cx-b.cx);
+        slideData={};
+        big.forEach((c,i)=>{ const n=mapping[i];
+          const mc=document.createElement("canvas"); mc.width=c.bw; mc.height=c.bh; const mx=mc.getContext("2d");
+          const im=mx.createImageData(c.bw,c.bh); const a=im.data;
+          for(let yy=0;yy<c.bh;yy++)for(let xx=0;xx<c.bw;xx++){ if(lbl[(c.by+yy)*w+(c.bx+xx)]===c.id){ const o=(yy*c.bw+xx)*4; a[o]=a[o+1]=a[o+2]=a[o+3]=255; } }
+          mx.putImageData(im,0,0);
+          slideData[n]={ bx:c.bx, by:c.by, bw:c.bw, bh:c.bh, maskURL:mc.toDataURL(), dir:n<=4?"up":"down" };
+        });
+      }
+
+      function maybeBuild(){ if(userPhoto && slideData[1]) buildDOM(); }
+
+      // ── build the 6 masked panels + position the photo inside each ──
+      function buildDOM(){
+        els.frame.innerHTML="";
+        els.frame.style.width=SB.w+"px"; els.frame.style.height=SB.h+"px";
+        for(let n=1;n<=6;n++){ const s=slideData[n]; if(!s) continue;
+          const el=document.createElement("div"); el.className="slide";
+          el.style.left=(s.bx-SB.x)+"px"; el.style.top=(s.by-SB.y)+"px";
+          el.style.width=s.bw+"px"; el.style.height=s.bh+"px";
+          el.style.webkitMaskImage="url("+s.maskURL+")"; el.style.maskImage="url("+s.maskURL+")";
+          const img=document.createElement("img"); img.src=userPhoto.src; el.appendChild(img);
+          els.frame.appendChild(el); s.el=el; s.img=img;
+        }
+        built=true; layout(); buildTimeline(); play();
+      }
+
+      // photo cover placement (global) + scale the frame to the display size
+      function layout(){
+        const dispW=+els.size.value, s=dispW/SB.w;
+        els.frame.style.transform="scale("+s+")";
+        els.fwrap.style.width=Math.round(SB.w*s)+"px"; els.fwrap.style.height=Math.round(SB.h*s)+"px";
+        if(!built) return;
+        const zoom=+els.zoom.value/100, mx=+els.x.value, my=+els.y.value;
+        const iw=userPhoto.naturalWidth, ih=userPhoto.naturalHeight;
+        const sc=Math.max(SB.w/iw,SB.h/ih)*zoom, dw=iw*sc, dh=ih*sc;
+        const dx=SB.x+SB.w/2-dw/2+mx, dy=SB.y+SB.h/2-dh/2+my; // global coords
+        for(let n=1;n<=6;n++){ const sd=slideData[n]; if(!sd||!sd.img)continue;
+          sd.img.style.left=(dx-sd.bx)+"px"; sd.img.style.top=(dy-sd.by)+"px";
+          sd.img.style.width=dw+"px"; sd.img.style.height=dh+"px"; }
+      }
+
+      // ── GSAP master timeline: clip-path reveal, staggered by progress threshold ──
+      function buildTimeline(){
+        if(tl) tl.kill();
+        const base=+els.speed.value/1000;
+        const d=[0]; for(let n=1;n<=6;n++) d[n]= n===1 ? base : d[n-1]*1.4;   // each 40% slower
+        const st=[0,0,0,0,0,0,0];
+        st[2]=st[1]+0.7*d[1]; st[3]=st[2]+0.7*d[2]; st[4]=st[3]+0.7*d[3];      // next at prev's 70%
+        st[5]=st[4]+0.5*d[4]; st[6]=st[5]+0.5*d[5];                            // 5,6 at prev's 50%
+        const drift=SB.h*0.10;   // photo scrolls UP 10% of frame height into place (down→up)
+        tl=gsap.timeline({paused:true});
+        let total=0;
+        for(let n=1;n<=6;n++){ const sd=slideData[n]; if(!sd||!sd.el)continue;
+          const fromClip = sd.dir==="up" ? "inset(100% 0% 0% 0%)" : "inset(0% 0% 100% 0%)";
+          tl.fromTo(sd.el,
+            { clipPath:fromClip, webkitClipPath:fromClip, opacity:0 },
+            { clipPath:"inset(0% 0% 0% 0%)", webkitClipPath:"inset(0% 0% 0% 0%)", opacity:1, duration:d[n], ease:"power3.out" },
+            st[n]);
+          total=Math.max(total, st[n]+d[n]);
+        }
+        // photo descends as ONE coherent motion across the whole reveal, in lockstep
+        // for every strip — so while each line animates in, the photo is still coming
+        // down. Linear so it keeps moving the entire time; settles aligned at the end.
+        const imgs=[]; for(let n=1;n<=6;n++){ const sd=slideData[n]; if(sd&&sd.img) imgs.push(sd.img); }
+        if(imgs.length) tl.fromTo(imgs, { y:drift }, { y:0, duration:total*0.7, ease:"none" }, 0);
+      }
+      function play(){ if(tl){ tl.restart(); } }
+
+      // ── controls ──
+      els.speed.addEventListener("input",()=>{ els.vSpeed.textContent=(+els.speed.value/1000).toFixed(2)+"s base"; if(built){ buildTimeline(); play(); } });
+      ["zoom","x","y","size"].forEach(id=>els[id].addEventListener("input",()=>{ els.vZoom.textContent=els.zoom.value+"%"; els.vX.textContent=els.x.value; els.vY.textContent=els.y.value; els.vSize.textContent=els.size.value+"px"; layout(); }));
+      els.replay.addEventListener("click",play);
+      els.reset.addEventListener("click",()=>{ els.zoom.value=100; els.x.value=0; els.y.value=0; els.vZoom.textContent="100%"; els.vX.textContent="0"; els.vY.textContent="0"; layout(); });
+
+      els.drop.addEventListener("click",()=>els.file.click());
+      els.file.addEventListener("change",e=>{const f=e.target.files[0];if(f)loadFile(f);});
+      ["dragover","dragenter"].forEach(ev=>els.drop.addEventListener(ev,e=>{e.preventDefault();els.drop.classList.add("over");}));
+      ["dragleave","drop"].forEach(ev=>els.drop.addEventListener(ev,e=>{e.preventDefault();els.drop.classList.remove("over");}));
+      els.drop.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)loadFile(f);});
+      function loadFile(f){ const r=new FileReader(); r.onload=async()=>{ userPhoto=await loadImg(r.result); maybeBuild(); els.status.textContent="Frame it, then ▶ Replay to watch the reveal."; }; r.readAsDataURL(f); }
+
+      layout(); // sets initial frame scale
+    </script>
+  </body>
+</html>

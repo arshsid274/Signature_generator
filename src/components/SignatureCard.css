@@ -1,0 +1,212 @@
+.sig-card {
+  display: flex;
+  align-items: center;
+  gap: 34px;
+  background: #ffffff;
+  border: 1px solid #e6e7ea;
+  border-radius: 16px;
+  padding: 26px 30px;
+  box-shadow: 0 10px 40px rgba(15, 18, 25, 0.08);
+  font-family: Arial, Helvetica, sans-serif;
+  color: #0f0f10;
+  width: max-content;
+  max-width: 100%;
+}
+.sig-selected {
+  outline: 2px dashed #9aa3b2;
+  outline-offset: 6px;
+}
+.sig-icons {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 14px 12px;
+  border: 1px solid #e6e7ea;
+  border-radius: 12px;
+}
+.sig-icon {
+  display: inline-flex;
+  opacity: 0.92;
+  transition: opacity 0.15s;
+}
+.sig-icon:hover {
+  opacity: 1;
+}
+.sig-details {
+  min-width: 230px;
+}
+/* Looping, staggered entrance for the logo + text — in sync with the photo
+   slices via the shared --sig-dur duration. */
+.sig-logo,
+.sig-wordmark,
+.sig-name-row,
+.sig-title,
+.sig-block {
+  animation-name: sig-fadeUp;
+  animation-duration: var(--sig-dur, 2.6s);
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
+}
+.sig-logo,
+.sig-wordmark {
+  animation-delay: 0s;
+}
+.sig-name-row {
+  animation-delay: 0.08s;
+}
+.sig-title {
+  animation-delay: 0.16s;
+}
+.sig-block {
+  animation-delay: 0.24s;
+}
+@keyframes sig-fadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  14% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  86% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+.sig-logo {
+  display: block;
+  max-width: 130px;
+  max-height: 46px;
+  height: auto;
+  margin-bottom: 20px;
+}
+.sig-wordmark {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin-bottom: 20px;
+}
+.sig-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sig-name {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0b0c0f;
+  line-height: 1.1;
+}
+.sig-title {
+  font-size: 17px;
+  color: #3c3f46;
+  margin-top: 4px;
+}
+.sig-block {
+  margin-top: 18px;
+}
+.sig-company {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0b0c0f;
+  margin-bottom: 4px;
+}
+.sig-link {
+  display: block;
+  font-size: 16px;
+  color: #1a1c22;
+  text-decoration: none;
+  line-height: 1.5;
+}
+.sig-link:hover {
+  text-decoration: underline;
+}
+.sig-photo-area {
+  position: relative;
+  height: 300px;
+  flex: none;
+}
+.sig-photo {
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+.slot,
+.strip {
+  position: absolute;
+  inset: 0;
+}
+.slot {
+  background: #e9eaec;
+}
+.strip {
+  background-repeat: no-repeat;
+  background-position: center;
+  animation-name: sig-stripIn;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+.sig-photo-empty {
+  position: absolute;
+  right: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f2f4;
+  border: 1px dashed #cdd2db;
+  border-radius: 8px;
+  color: #9aa3b2;
+  font-size: 13px;
+}
+.deco {
+  position: absolute;
+  top: 0;
+  background: #eef0f2;
+  height: 100%;
+  width: 42px;
+}
+.deco1 {
+  left: 4px;
+  clip-path: polygon(46px 0, 88px 0, 42px 100%, 0 100%);
+  opacity: 0.9;
+}
+.deco2 {
+  left: 70px;
+  height: 60%;
+  top: 20%;
+  clip-path: polygon(30px 0, 58px 0, 28px 100%, 0 100%);
+  opacity: 0.7;
+}
+.deco3 {
+  left: 30px;
+  top: -4px;
+  height: 26%;
+  clip-path: polygon(40px 0, 70px 0, 30px 100%, 0 100%);
+  opacity: 0.6;
+}
+@keyframes sig-stripIn {
+  0% {
+    opacity: 0;
+    transform: translateY(34px);
+  }
+  22% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  86% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(34px);
+  }
+}
