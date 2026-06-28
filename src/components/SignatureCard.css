@@ -129,8 +129,9 @@
 }
 .sig-photo-area {
   position: relative;
-  height: 300px;
   flex: none;
+  display: flex;
+  align-items: center;
 }
 .sig-photo {
   position: absolute;

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useProject } from "@/lib/store";
+import { getLayout } from "@/lib/layouts";
 import SignatureCard from "./SignatureCard";
 import { Button } from "@/components/ui";
 
@@ -9,6 +10,7 @@ export default function PreviewStage({ onExport }: { onExport: () => void }) {
   const { project } = useProject();
   const c = project.content;
   const a = project.animationOpts;
+  const layout = getLayout(project.layoutId);
   const [replayKey, setReplayKey] = useState(0);
 
   return (
@@ -26,10 +28,13 @@ export default function PreviewStage({ onExport }: { onExport: () => void }) {
           accent={c.accent}
           verified={c.verified}
           socials={c.socials}
-          strips={a.strips}
-          skew={a.skew}
-          stagger={a.stagger}
+          animationId={project.animationId}
+          photoStyle={layout.photoStyle}
           durationMs={a.durationMs}
+          holdMs={project.export.holdMs}
+          zoom={a.zoom}
+          offsetX={a.offsetX}
+          offsetY={a.offsetY}
           replayKey={replayKey}
         />
       </div>

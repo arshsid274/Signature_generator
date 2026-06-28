@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React from "react";
 import { SOCIAL_ICON, VerifiedBadge } from "./icons";
+import SlicePhoto from "./SlicePhoto";
+import type { PhotoStyle } from "@/lib/types";
 import "./SignatureCard.css";
 
 export interface SignatureCardProps {
@@ -17,18 +19,19 @@ export interface SignatureCardProps {
   verified: boolean;
   socials: { type: string; url: string }[];
   // animation tuning
-  strips?: number;
-  skew?: number; // degrees
-  stagger?: number; // 0–1
+  animationId?: string;
+  photoStyle?: PhotoStyle;
   durationMs?: number;
+  holdMs?: number;
+  zoom?: number;
+  offsetX?: number;
+  offsetY?: number;
   replayKey?: number;
   selected?: boolean;
 }
 
 // Fixed internal design size — the card scales down to fit its container.
-const PHOTO_W = 250;
-const PHOTO_H = 300;
-const GAP = 6; // thin white gap between slices
+const PHOTO_H = 250;
 
 export default function SignatureCard(props: SignatureCardProps) {
   const {
@@ -42,29 +45,18 @@ export default function SignatureCard(props: SignatureCardProps) {
     accent,
     verified,
     socials,
-    strips = 4,
-    skew = 18,
-    stagger = 0.5,
-    durationMs = 1600,
+    animationId = "slice-reveal",
+    photoStyle = "full-bleed",
+    durationMs = 2600,
+    holdMs = 1000,
+    zoom = 1,
+    offsetX = 0,
+    offsetY = 0,
     replayKey = 0,
     selected = false,
   } = props;
 
-  const n = Math.max(2, Math.round(strips));
-  const skewPx = Math.min(80, (skew / 40) * 70);
-  const wrapW = PHOTO_W + skewPx;
-  const durSec = durationMs / 1000 + 1; // include an end-hold before the loop
-  const staggerSec = stagger * 0.4;
-
-  // Pre-compute the parallelogram clip-path for each diagonal slice.
-  const bands = useMemo(() => {
-    return Array.from({ length: n }, (_, i) => {
-      const L = (i / n) * PHOTO_W;
-      const R = ((i + 1) / n) * PHOTO_W;
-      const clip = `polygon(${L + skewPx + GAP}px 0, ${R + skewPx}px 0, ${R}px ${PHOTO_H}px, ${L + GAP}px ${PHOTO_H}px)`;
-      return { i, clip };
-    });
-  }, [n, skewPx]);
+  const durSec = durationMs / 1000 + 1; // text fade loop, with an end-hold
 
   // The social icon column: website first (globe), then each filled social link.
   const iconItems: { type: string; url: string }[] = [];
@@ -73,7 +65,6 @@ export default function SignatureCard(props: SignatureCardProps) {
 
   return (
     <div
-      key={replayKey}
       className={`sig-card${selected ? " sig-selected" : ""}`}
       style={{ ["--sig-dur" as string]: `${durSec}s` }}
     >
@@ -140,40 +131,26 @@ export default function SignatureCard(props: SignatureCardProps) {
         </div>
       </div>
 
-      {/* right — animated sliced photo */}
-      <div className="sig-photo-area" style={{ width: wrapW + 80 }}>
-        {/* decorative gray parallelograms */}
-        <span className="deco deco1" />
-        <span className="deco deco2" />
-        <span className="deco deco3" />
-
+      {/* right — animated sliced photo (pixel-exact slice-reveal) */}
+      <div className="sig-photo-area">
         {photoSrc ? (
-          <div className="sig-photo" style={{ width: wrapW, height: PHOTO_H }}>
-            {/* gray placeholder slots (always visible behind the photo) */}
-            {bands.map((b) => (
-              <span
-                key={`slot-${b.i}`}
-                className="slot"
-                style={{ clipPath: b.clip }}
-              />
-            ))}
-            {/* photo slices that animate in */}
-            {bands.map((b) => (
-              <span
-                key={`strip-${b.i}`}
-                className="strip"
-                style={{
-                  clipPath: b.clip,
-                  backgroundImage: `url(${photoSrc})`,
-                  backgroundSize: `${wrapW}px ${PHOTO_H}px`,
-                  animationDelay: `${(b.i * staggerSec).toFixed(2)}s`,
-                  animationDuration: `${durSec}s`,
-                }}
-              />
-            ))}
-          </div>
+          <SlicePhoto
+            photoSrc={photoSrc}
+            animationId={animationId}
+            photoStyle={photoStyle}
+            height={PHOTO_H}
+            durationMs={durationMs}
+            holdMs={holdMs}
+            zoom={zoom}
+            offsetX={offsetX}
+            offsetY={offsetY}
+            replayKey={replayKey}
+          />
         ) : (
-          <div className="sig-photo-empty" style={{ width: wrapW, height: PHOTO_H }}>
+          <div
+            className="sig-photo-empty"
+            style={{ width: Math.round(PHOTO_H * 1.14), height: PHOTO_H }}
+          >
             Upload a photo
           </div>
         )}

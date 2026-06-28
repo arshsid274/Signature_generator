@@ -8,6 +8,7 @@ export default function AnimationPanel() {
   const { project, setAnimation, setAnimationOpts } = useProject();
   const a = project.animationOpts;
   const isStrips = project.animationId === "diagonal-strips";
+  const isSlice = project.animationId === "slice-reveal";
 
   return (
     <div>
@@ -69,7 +70,7 @@ export default function AnimationPanel() {
       )}
 
       <Slider
-        label="Duration"
+        label={isSlice ? "Speed" : "Duration"}
         value={a.durationMs}
         min={600}
         max={4000}
@@ -77,6 +78,38 @@ export default function AnimationPanel() {
         display={`${(a.durationMs / 1000).toFixed(1)}s`}
         onChange={(v) => setAnimationOpts({ durationMs: v })}
       />
+
+      {isSlice && (
+        <>
+          <Slider
+            label="Photo zoom"
+            value={a.zoom}
+            min={0.5}
+            max={2.8}
+            step={0.02}
+            display={`${Math.round(a.zoom * 100)}%`}
+            onChange={(v) => setAnimationOpts({ zoom: v })}
+          />
+          <Slider
+            label="Move X"
+            value={a.offsetX}
+            min={-400}
+            max={400}
+            step={2}
+            display={`${a.offsetX}`}
+            onChange={(v) => setAnimationOpts({ offsetX: v })}
+          />
+          <Slider
+            label="Move Y"
+            value={a.offsetY}
+            min={-400}
+            max={400}
+            step={2}
+            display={`${a.offsetY}`}
+            onChange={(v) => setAnimationOpts({ offsetY: v })}
+          />
+        </>
+      )}
 
       <Toggle
         label="Loop animation"

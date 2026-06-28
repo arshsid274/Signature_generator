@@ -3,6 +3,7 @@ import type { SignatureProject } from "./types";
 import { getLayout } from "./layouts";
 import { getAnimation } from "./animations";
 import { renderPhotoFrame, regionOf } from "./renderer";
+import { ensureSliceModel, sliceAspect } from "./sliceReveal";
 
 export interface PhotoGifResult {
   dataUrl: string; // base64 data: URL — embeds straight into the email HTML
@@ -41,11 +42,20 @@ export async function exportPhotoGif(
 ): Promise<PhotoGifResult> {
   const layout = getLayout(project.layoutId);
   const animation = getAnimation(project.animationId);
-  const photoZone = layout.zones.find((z) => z.id === "photo");
-  if (!photoZone) throw new Error("This layout has no photo zone.");
+  const isSlice = animation.id === "slice-reveal";
 
-  const zoneRegion = regionOf(photoZone, layout);
-  const aspect = zoneRegion.w / zoneRegion.h || 0.75;
+  // The slice-reveal defines its own silhouette aspect; other effects use the
+  // layout's photo zone.
+  let aspect: number;
+  if (isSlice) {
+    await ensureSliceModel(); // segment the mask before rendering frames
+    aspect = sliceAspect();
+  } else {
+    const photoZone = layout.zones.find((z) => z.id === "photo");
+    if (!photoZone) throw new Error("This layout has no photo zone.");
+    const zoneRegion = regionOf(photoZone, layout);
+    aspect = zoneRegion.w / zoneRegion.h || 0.75;
+  }
 
   const h = Math.round(opts.targetHeight ?? 220);
   const w = Math.round(h * aspect);

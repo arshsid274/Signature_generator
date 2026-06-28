@@ -32,8 +32,11 @@ const DEFAULT_ANIM: AnimationOpts = {
   strips: 5,
   stagger: 0.55,
   skew: 18,
-  durationMs: 1600,
+  durationMs: 2600,
   loop: true,
+  zoom: 1,
+  offsetX: 0,
+  offsetY: 0,
 };
 
 const DEFAULT_EXPORT: ExportOpts = {
@@ -47,7 +50,7 @@ const DEFAULT_EXPORT: ExportOpts = {
 const DEFAULT_PROJECT: SignatureProject = {
   content: DEFAULT_CONTENT,
   layoutId: "classic-right",
-  animationId: "diagonal-strips",
+  animationId: "slice-reveal",
   animationOpts: DEFAULT_ANIM,
   export: DEFAULT_EXPORT,
 };
@@ -102,12 +105,16 @@ export const useProject = create<ProjectState>()(
     }),
     {
       name: "animated-signature-studio",
-      version: 2,
+      version: 3,
       // Backfill fields added after a project was first saved.
       migrate: (persisted: unknown) => {
         const s = persisted as { project?: SignatureProject } | undefined;
         if (s?.project) {
           s.project.content = { ...DEFAULT_CONTENT, ...s.project.content };
+          s.project.animationOpts = {
+            ...DEFAULT_ANIM,
+            ...s.project.animationOpts,
+          };
         }
         return s as never;
       },

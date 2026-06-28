@@ -3,6 +3,7 @@ import type { SignatureProject } from "./types";
 import { getLayout } from "./layouts";
 import { getAnimation } from "./animations";
 import { renderFrame, type RenderImages } from "./renderer";
+import { ensureSliceModel } from "./sliceReveal";
 
 export interface ExportResult {
   blob: Blob;
@@ -32,6 +33,8 @@ export async function exportGif(
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Could not acquire 2D context");
   ctx.scale(scale, scale);
+
+  if (project.animationId === "slice-reveal") await ensureSliceModel();
 
   const duration = project.animationOpts.durationMs;
   const animFrames = Math.max(2, Math.round((duration / 1000) * fps));

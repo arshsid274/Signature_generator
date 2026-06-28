@@ -5,6 +5,7 @@ import { useProject } from "@/lib/store";
 import { useLoadedImages } from "@/hooks/useLoadedImages";
 import { getLayout } from "@/lib/layouts";
 import { exportPhotoGif, type PhotoGifResult } from "@/lib/photoGif";
+import { exportLogoGif, type LogoGifResult } from "@/lib/logoGif";
 import { exportCardGif, type CardGifResult } from "@/lib/cardGif";
 import { buildSignatureHtml, buildSignatureText } from "@/lib/signatureHtml";
 import { socialIconMap, type IconKey } from "@/lib/socialIcons";
@@ -24,10 +25,11 @@ export default function EmailPanel() {
   const layout = getLayout(project.layoutId);
   const hasPhotoZone = layout.zones.some((z) => z.id === "photo" && z.visible);
 
-  const [mode, setMode] = useState<Mode>("card");
+  const [mode, setMode] = useState<Mode>("photo");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [gif, setGif] = useState<PhotoGifResult | null>(null);
+  const [logoGif, setLogoGif] = useState<LogoGifResult | null>(null);
   const [cardGif, setCardGif] = useState<CardGifResult | null>(null);
   const [copied, setCopied] = useState<"none" | "rich" | "fail">("none");
   const [showSource, setShowSource] = useState(false);
@@ -48,18 +50,20 @@ export default function EmailPanel() {
     return { w: PHOTO_DISPLAY_W, h };
   }, [gif]);
 
-  // Photo-only mode: HTML table signature with the animated photo embedded.
+  // Photo-only mode: HTML table signature with the animated photo embedded, plus
+  // the animated logo GIF (when a logo exists) in place of the static logo. All
+  // text/links stay as crisp, static HTML.
   const photoHtml = useMemo(() => {
     return buildSignatureHtml({
       content: project.content,
       photoGif: gif?.dataUrl,
       photoWidth: photoDims.w,
       photoHeight: photoDims.h,
-      logoSrc: project.content.logoSrc,
+      logoSrc: logoGif?.dataUrl ?? project.content.logoSrc,
       socialIcons: icons,
       showFooter,
     });
-  }, [project.content, gif, photoDims, icons, showFooter]);
+  }, [project.content, gif, logoGif, photoDims, icons, showFooter]);
 
   // Whole-card mode: the entire animated signature is a single GIF image.
   const cardHtml = useMemo(() => {
@@ -87,8 +91,14 @@ export default function EmailPanel() {
         setCardGif(r);
       } else {
         setGif(null);
+        setLogoGif(null);
+        // Photo GIF drives the progress bar; the logo GIF is a quick add-on.
         const r = await exportPhotoGif(project, photo, { onProgress: setProgress });
         setGif(r);
+        if (logo) {
+          const lr = await exportLogoGif(project, logo);
+          setLogoGif(lr);
+        }
       }
     } catch (e) {
       alert("Could not build GIF: " + (e as Error).message);
@@ -138,7 +148,7 @@ export default function EmailPanel() {
               : "border-[var(--border)] bg-[var(--panel-2)] text-[var(--muted)]"
           }`}
         >
-          <div className="font-medium">Photo only</div>
+          <div className="font-medium">Logo + Photo</div>
           <div className="text-[11px] opacity-80">Sharp, selectable text</div>
         </button>
       </div>
@@ -153,9 +163,10 @@ export default function EmailPanel() {
           </>
         ) : (
           <>
-            Only the <strong className="text-[var(--text)]">photo</strong>{" "}
-            animates; name, links and icons stay as crisp, clickable HTML text.
-            Smaller and sharper — best for everyday email.
+            The <strong className="text-[var(--text)]">logo</strong> and{" "}
+            <strong className="text-[var(--text)]">photo</strong> animate as GIFs;
+            name, links and icons stay as crisp, clickable HTML text. Smaller and
+            sharper — best for everyday email.
           </>
         )}
       </p>

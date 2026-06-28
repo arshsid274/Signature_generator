@@ -2,6 +2,7 @@ import { GIFEncoder, quantize, applyPalette } from "gifenc";
 import type { SignatureProject } from "./types";
 import { cardDimensions, renderCardFrame } from "./cardRenderer";
 import type { RenderImages } from "./renderer";
+import { ensureSliceModel } from "./sliceReveal";
 
 export interface CardGifResult {
   dataUrl: string;
@@ -38,6 +39,8 @@ export async function exportCardGif(
   canvas.height = h;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Could not acquire 2D context");
+
+  if (project.animationId === "slice-reveal") await ensureSliceModel();
 
   const fps = Math.min(20, project.export.fps);
   const duration = project.animationOpts.durationMs;

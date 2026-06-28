@@ -35,6 +35,8 @@ function clamp01(t: number) {
   return Math.max(0, Math.min(1, t));
 }
 
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
 // Pick readable text color depending on background luminance.
 function isDark(hex: string): boolean {
   const m = hex.replace("#", "");
@@ -242,7 +244,9 @@ export function renderFrame(
       case "photo": {
         if (!images.photo) break;
         ctx.save();
-        clipPhotoStyle(ctx, r, layout.photoStyle);
+        // The slice-reveal's silhouette mask already defines the shape.
+        if (animation.id !== "slice-reveal")
+          clipPhotoStyle(ctx, r, layout.photoStyle);
         animation.render(ctx, images.photo, r, t, animationOpts);
         ctx.restore();
         break;
@@ -339,9 +343,50 @@ export function renderPhotoFrame(
   }
   const region: Region = { x: 0, y: 0, w: width, h: height };
   ctx.save();
-  clipPhotoStyle(ctx, region, photoStyle);
+  if (animation.id !== "slice-reveal")
+    clipPhotoStyle(ctx, region, photoStyle);
   animation.render(ctx, image, region, t, animationOpts);
   ctx.restore();
+}
+
+// ── Logo-only frame (for the standalone animated-logo GIF) ───────────────────
+// Renders just the logo, contain-fit (never cropped), with a fade + gentle rise
+// reveal — embedded into the HTML signature as its own small looping GIF so the
+// logo animates while the surrounding text stays static.
+export interface LogoFrameOptions {
+  image: CanvasImageSource;
+  width: number;
+  height: number;
+  t: number;
+  background?: string; // solid fill; omit for transparent
+  align?: "left" | "center";
+}
+
+export function renderLogoFrame(
+  ctx: CanvasRenderingContext2D,
+  o: LogoFrameOptions
+): void {
+  const { image, width, height, t } = o;
+  ctx.clearRect(0, 0, width, height);
+  if (o.background) {
+    ctx.fillStyle = o.background;
+    ctx.fillRect(0, 0, width, height);
+  }
+  const e = easeOutCubic(clamp01(t));
+  const rise = (1 - e) * height * 0.16; // slides up into place
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, width, height);
+  ctx.clip();
+  ctx.globalAlpha = e;
+  drawImageContain(
+    ctx,
+    image,
+    { x: 0, y: rise, w: width, h: height },
+    o.align !== "center"
+  );
+  ctx.restore();
+  ctx.globalAlpha = 1;
 }
 
 // Render the full project to a fresh offscreen-able canvas context at t.

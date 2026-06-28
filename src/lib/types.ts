@@ -62,6 +62,10 @@ export interface AnimationOpts {
   skew: number; // degrees of the diagonal
   durationMs: number;
   loop: boolean;
+  // Photo framing inside the slice-reveal silhouette (ported from index.html)
+  zoom: number; // 0.5–2.8, 1 = cover
+  offsetX: number; // silhouette-px pan, −400…400
+  offsetY: number; // silhouette-px pan, −400…400
 }
 
 export interface ExportOpts {

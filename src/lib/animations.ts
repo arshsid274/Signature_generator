@@ -1,5 +1,6 @@
 import type { AnimationDef, AnimationOpts, Region } from "./types";
 import { computeCover } from "./imageUtils";
+import { renderSlice } from "./sliceReveal";
 
 // ── easing ─────────────────────────────────────────────────────────────────
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -145,6 +146,12 @@ function revealSettle(
 }
 
 export const ANIMATIONS: AnimationDef[] = [
+  {
+    id: "slice-reveal",
+    name: "Slice Reveal",
+    durationMs: 2600,
+    render: renderSlice,
+  },
   {
     id: "diagonal-strips",
     name: "Diagonal Strips",
